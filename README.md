@@ -161,6 +161,24 @@ actually running on the Neural Engine. (IOReport is loaded via `dlopen` of
 `/usr/lib/libIOReport.dylib`; the rollup channels `CPU Energy`/`GPU Energy`/`ANE0`/`DRAM0`
 are used to avoid double-counting the per-core channels.)
 
+### Profile a workload
+
+`smcprobe energy -- <command>` runs a command, integrates energy over its runtime, and
+reports joules by subsystem plus the bottleneck:
+
+```
+$ smcprobe energy -- ./my_metal_bench
+  wall       6.22 s
+  energy     248.4 J   (avg 39.9 W · peak 47.1 W)
+  by subsystem  CPU 79.8 J · GPU 149.9 J · ANE 0.0 J · DRAM 17.3 J
+  split         CPU 32% · GPU 60% · ANE 0% · DRAM 7%
+  → GPU-bound (GPU 60% of energy)
+```
+
+It answers questions time-profilers can't: *how many joules did this cost, and where did
+they go.* (A CoreML inference loop, for instance, often shows up **CPU-bound** — the Python
+`predict()` overhead outweighs the ANE compute — even while real ANE energy is non-zero.)
+
 ## Architecture & Roadmap
 
 The goal is a **simple, powerful, portable** tool: one static binary, an embedded UI, and

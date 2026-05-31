@@ -59,8 +59,16 @@ fn load_profile(src: &dyn SensorSource) -> Profile {
 }
 
 fn main() {
-    // The energy meter uses IOReport, not the SMC — handle it before opening one.
-    if std::env::args().nth(1).as_deref() == Some("energy") {
+    // The energy modes use IOReport, not the SMC — handle them before opening one.
+    let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(String::as_str) == Some("energy") {
+        if let Some(pos) = args.iter().position(|a| a == "--") {
+            let cmd = &args[pos + 1..];
+            if !cmd.is_empty() {
+                ioreport::run_energy_profile(cmd);
+                return;
+            }
+        }
         ioreport::run_energy();
         return;
     }

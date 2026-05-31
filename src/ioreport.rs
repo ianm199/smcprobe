@@ -167,6 +167,55 @@ fn read_delta(api: &IOReportApi, delta: CFRef) -> Vec<(String, f64)> {
     out
 }
 
+/// Per-subsystem totals (joules over a window, or watts once scaled).
+#[derive(Default, Clone, Copy)]
+struct Buckets {
+    cpu: f64,
+    gpu: f64,
+    ane: f64,
+    dram: f64,
+    disp: f64,
+}
+
+impl Buckets {
+    fn total(&self) -> f64 {
+        self.cpu + self.gpu + self.ane + self.dram + self.disp
+    }
+    fn add(&mut self, o: &Buckets) {
+        self.cpu += o.cpu;
+        self.gpu += o.gpu;
+        self.ane += o.ane;
+        self.dram += o.dram;
+        self.disp += o.disp;
+    }
+    fn scale(&self, k: f64) -> Buckets {
+        Buckets {
+            cpu: self.cpu * k,
+            gpu: self.gpu * k,
+            ane: self.ane * k,
+            dram: self.dram * k,
+            disp: self.disp * k,
+        }
+    }
+}
+
+/// Sums the rollup channels only (the group also exposes per-core channels, so
+/// substring-summing would double-count). Values are joules for the window.
+fn bucket(channels: &[(String, f64)]) -> Buckets {
+    let mut b = Buckets::default();
+    for (name, j) in channels {
+        match name.as_str() {
+            "CPU Energy" => b.cpu += *j,
+            "GPU Energy" => b.gpu += *j,
+            "ANE0" | "ANE Energy" => b.ane += *j,
+            "DRAM0" => b.dram += *j,
+            "DISP0" => b.disp += *j,
+            _ => {}
+        }
+    }
+    b
+}
+
 /// Live per-subsystem energy meter: prints CPU / GPU / ANE watts at ~2 Hz.
 pub fn run_energy() {
     let api = match IOReportApi::load() {
@@ -205,24 +254,10 @@ pub fn run_energy() {
             announced = true;
         }
 
-        // Use the rollup channels only — the group also exposes per-core/per-block
-        // channels, so substring-summing would double-count.
-        let (mut cpu, mut gpu, mut ane, mut dram, mut disp) = (0.0, 0.0, 0.0, 0.0, 0.0);
-        for (name, j) in &channels {
-            let w = j / dt;
-            match name.as_str() {
-                "CPU Energy" => cpu += w,
-                "GPU Energy" => gpu += w,
-                "ANE0" | "ANE Energy" => ane += w,
-                "DRAM0" => dram += w,
-                "DISP0" => disp += w,
-                _ => {}
-            }
-        }
-        let total = cpu + gpu + ane + dram + disp;
-
+        let w = bucket(&channels).scale(1.0 / dt);
         print!(
-            "\rCPU {cpu:6.2}  GPU {gpu:6.2}  ANE {ane:5.2}  DRAM {dram:5.2}  DISP {disp:4.2}  │ total {total:6.2} W   "
+            "\rCPU {:6.2}  GPU {:6.2}  ANE {:5.2}  DRAM {:5.2}  DISP {:4.2}  │ total {:6.2} W   ",
+            w.cpu, w.gpu, w.ane, w.dram, w.disp, w.total()
         );
         use std::io::Write;
         std::io::stdout().flush().ok();
@@ -233,4 +268,94 @@ pub fn run_energy() {
         }
         prev = cur;
     }
+}
+
+/// Profiles a child command: integrates per-subsystem energy over its runtime
+/// and reports joules, the subsystem split, and the bottleneck. Run as
+/// `smcprobe energy -- <command> [args...]`.
+pub fn run_energy_profile(cmd: &[String]) {
+    let api = match IOReportApi::load() {
+        Some(a) => a,
+        None => {
+            eprintln!("Could not load the IOReport framework.");
+            std::process::exit(1);
+        }
+    };
+    let meter = match EnergyMeter::open(&api) {
+        Some(m) => m,
+        None => {
+            eprintln!("Could not open IOReport 'Energy Model' channels.");
+            std::process::exit(1);
+        }
+    };
+
+    eprintln!("smcprobe energy · profiling: {}\n", cmd.join(" "));
+    let mut child = match std::process::Command::new(&cmd[0]).args(&cmd[1..]).spawn() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("failed to launch '{}': {e}", cmd[0]);
+            std::process::exit(1);
+        }
+    };
+
+    let t0 = Instant::now();
+    let mut prev = meter.sample();
+    let mut last = Instant::now();
+    let mut total = Buckets::default();
+    let mut peak_w = 0.0_f64;
+
+    loop {
+        std::thread::sleep(Duration::from_millis(200));
+        let exited = matches!(child.try_wait(), Ok(Some(_)));
+        let cur = meter.sample();
+        let dt = last.elapsed().as_secs_f64();
+        last = Instant::now();
+        let delta = unsafe { (api.create_delta)(prev, cur, std::ptr::null()) };
+        let window = bucket(&read_delta(&api, delta));
+        total.add(&window);
+        let w = window.total() / dt;
+        if w > peak_w {
+            peak_w = w;
+        }
+        unsafe {
+            CFRelease(delta);
+            CFRelease(prev);
+        }
+        prev = cur;
+        if exited {
+            break;
+        }
+    }
+    unsafe { CFRelease(prev) };
+
+    let wall = t0.elapsed().as_secs_f64();
+    let tot = total.total();
+    let pct = |x: f64| if tot > 0.0 { 100.0 * x / tot } else { 0.0 };
+    let (label, share) = [
+        ("CPU", total.cpu),
+        ("GPU", total.gpu),
+        ("ANE", total.ane),
+        ("DRAM", total.dram),
+    ]
+    .into_iter()
+    .fold(("CPU", 0.0), |best, (n, v)| if v > best.1 { (n, v) } else { best });
+    let verdict = match label {
+        "GPU" => "GPU-bound",
+        "ANE" => "ANE-bound",
+        "DRAM" => "memory-bound",
+        _ => "CPU/compute-bound",
+    };
+
+    println!("\n─ energy profile · {} ─", cmd.join(" "));
+    println!("  wall       {wall:.2} s");
+    println!("  energy     {tot:.1} J   (avg {:.1} W · peak {:.1} W)", tot / wall, peak_w);
+    println!(
+        "  by subsystem  CPU {:.1} J · GPU {:.1} J · ANE {:.1} J · DRAM {:.1} J · DISP {:.1} J",
+        total.cpu, total.gpu, total.ane, total.dram, total.disp
+    );
+    println!(
+        "  split         CPU {:.0}% · GPU {:.0}% · ANE {:.0}% · DRAM {:.0}% · DISP {:.0}%",
+        pct(total.cpu), pct(total.gpu), pct(total.ane), pct(total.dram), pct(total.disp)
+    );
+    println!("  → {verdict} ({label} {:.0}% of energy)", pct(share));
 }
