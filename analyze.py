@@ -13,7 +13,8 @@ import sys
 from collections import defaultdict
 from statistics import mean
 
-STIMULI = ["cpu_all", "cpu_e", "memory", "disk", "gpu", "wifi", "audio", "display"]
+STIMULI = ["cpu_all", "cpu_e", "memory", "disk", "gpu", "wifi", "audio",
+           "display", "charger_out", "charger_in", "camera"]
 
 EXCLUDE_TYPES = {"ui32", "ui64", "si32", "si64"}
 """Wide integer types are overwhelmingly monotonic accumulators (energy totals,

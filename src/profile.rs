@@ -26,6 +26,10 @@ pub struct Profile {
     pub system_power: String,
     pub cpu_clusters: Vec<String>,
     pub rails: Vec<String>,
+    pub adapter_voltage: Vec<String>,
+    pub adapter_current: Vec<String>,
+    pub backlight_power: String,
+    pub backlight_current: String,
 }
 
 /// Profiles shipped inside the binary, keyed by `hw.model`.
@@ -81,6 +85,10 @@ impl Profile {
             system_power: one("system_power"),
             cpu_clusters: list("cpu_clusters"),
             rails: list("rails"),
+            adapter_voltage: list("adapter_voltage"),
+            adapter_current: list("adapter_current"),
+            backlight_power: one("backlight_power"),
+            backlight_current: one("backlight_current"),
         }
     }
 }

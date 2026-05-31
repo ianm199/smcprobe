@@ -16,7 +16,7 @@ out = sys.argv[1]
 schema = json.load(open(f"{out}/schema.json"))
 samples = [json.loads(l) for l in open(f"{out}/samples.jsonl") if l.strip()]
 
-PERIPH = ["wifi", "audio", "display"]
+PERIPH = ["wifi", "audio", "display", "charger_out", "charger_in", "camera"]
 COMPUTE = ["cpu_all", "cpu_e", "memory", "disk", "gpu"]
 EXCLUDE_TYPES = {"ui32", "ui64", "si32", "si64"}  # free-running counters, not sensors
 

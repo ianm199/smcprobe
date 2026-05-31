@@ -42,6 +42,10 @@ pub struct Snapshot {
     pub grid_e: Vec<(String, f32)>,
     pub grid_g: Vec<(String, f32)>,
     pub rails: Vec<Rail>,
+    pub adapter_v: Option<f32>,
+    pub adapter_i: Option<f32>,
+    pub charger_present: bool,
+    pub backlight_w: Option<f32>,
 }
 
 impl Snapshot {
@@ -60,6 +64,10 @@ impl Snapshot {
         add(&mut want, &p.cpu_clusters);
         want.push(p.dram_power.clone());
         want.push(p.system_power.clone());
+        add(&mut want, &p.adapter_voltage);
+        add(&mut want, &p.adapter_current);
+        want.push(p.backlight_power.clone());
+        want.push(p.backlight_current.clone());
         for s in &p.rails {
             want.push(format!("V{s}"));
             want.push(format!("I{s}"));
@@ -122,6 +130,10 @@ impl Snapshot {
             grid_e: grid(&m, &p.cpu_e_temp),
             grid_g: grid(&m, &p.gpu_temp),
             rails,
+            adapter_v: avg(&m, &p.adapter_voltage),
+            adapter_i: avg(&m, &p.adapter_current),
+            charger_present: avg(&m, &p.adapter_voltage).is_some_and(|v| v > 1.0),
+            backlight_w: m.get(&p.backlight_power).copied(),
         }
     }
 
@@ -134,6 +146,7 @@ impl Snapshot {
                 r#""ssd":{{"temp":{}}},"battery":{{"temp":{}}},"#,
                 r#""fans":[{{"rpm":{}}},{{"rpm":{}}}],"#,
                 r#""power":{{"total":{},"cluster0":{},"cluster1":{}}},"#,
+                r#""adapter":{{"v":{},"i":{},"present":{}}},"backlight":{{"power":{}}},"#,
                 r#""grid_p":{},"grid_e":{},"grid_g":{},"rails":{}}}"#
             ),
             opt(self.cpu_p.temp),
@@ -150,6 +163,10 @@ impl Snapshot {
             opt(self.total_power),
             opt(self.cluster0),
             opt(self.cluster1),
+            opt(self.adapter_v),
+            opt(self.adapter_i),
+            self.charger_present,
+            opt(self.backlight_w),
             grid_json(&self.grid_p),
             grid_json(&self.grid_e),
             grid_json(&self.grid_g),

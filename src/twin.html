@@ -126,6 +126,11 @@
     <text class="lab" x="396" y="594" text-anchor="start">BATTERY</text>
     <text class="val" id="battery-val" x="604" y="595" text-anchor="end" style="font-size:12px">—</text>
 
+    <!-- charger / backlight (mapped via Simon-says) -->
+    <text class="lab" x="700" y="468" text-anchor="start">CHARGER</text>
+    <text class="val" id="charger-val" x="930" y="468" text-anchor="end" style="font-size:12px">—</text>
+    <text class="unit" id="backlight-val" x="930" y="484" text-anchor="end"></text>
+
     <!-- power / energy -->
     <text class="lab" x="930" y="500" text-anchor="end">SYSTEM POWER</text>
     <rect x="700" y="510" width="230" height="22" rx="6" fill="#0d141c" stroke="#263244"/>
@@ -273,6 +278,18 @@
     fanRpm[0] = d.fans[0].rpm || 0; fanRpm[1] = d.fans[1].rpm || 0;
     setText("fan0-val", d.fans[0].rpm == null ? "—" : d.fans[0].rpm.toFixed(0));
     setText("fan1-val", d.fans[1].rpm == null ? "—" : d.fans[1].rpm.toFixed(0));
+
+    if (d.adapter) {
+      const ch = document.getElementById("charger-val");
+      ch.textContent = d.adapter.present
+        ? `● plugged in (${d.adapter.v == null ? "?" : d.adapter.v.toFixed(0)})`
+        : "○ on battery";
+      ch.setAttribute("fill", d.adapter.present ? "#4ec9a8" : "#f5c451");
+    }
+    if (d.backlight) {
+      document.getElementById("backlight-val").textContent =
+        d.backlight.power == null ? "" : `backlight ${d.backlight.power.toFixed(1)} W`;
+    }
 
     const total = d.power.total;
     if (total != null) {

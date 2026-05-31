@@ -24,4 +24,13 @@ fans: F0Ac F1Ac
 system_power: PSTR
 cpu_clusters: PZC0 PZC1
 
+# AC adapter / charging input — the D3* family (+ AC*), mapped via charger
+# plug/unplug. Raw ui16 ADC values, not clean volts/amps; ~0 when unplugged.
+adapter_voltage: D3VM D3VX D3MV D3VR D3Vm D3Vb
+adapter_current: D3IR D3MI
+
+# Display backlight rail — mapped via brightness min->max.
+backlight_power: PDBR
+backlight_current: IDBR
+
 rails: C00 C01 C02 C03 C10 C11 C12 C13 C20 C21 C22 C23 C32 C40 C42 C43 E0b E1b P0b P1b P1l P2b P2l P3b P3l P4l P5b P5l P6b P7b P8b P9b R0b R0l R1b R1l R2b R3b R4b R5b R6b R7b R8b R9b SVR b0f
