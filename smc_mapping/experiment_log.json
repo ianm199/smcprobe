@@ -1,0 +1,49 @@
+{
+  "machine": "MacBook Pro Mac15,11 (Apple M3 Max, 96GB)",
+  "goal": "Empirically map unlabeled AppleSMC sensor keys to physical subsystems by correlating controlled stimuli against which keys respond.",
+  "method": "For each stimulus: sample all numeric SMC keys during a per-rep idle pre-phase, during sustained load, and during cooldown. A key that rises specifically under one stimulus is hypothesized to sense that subsystem. Thermal crosstalk means labels are correlational, not ground truth.",
+  "constraints": {
+    "smc_access": "read-only (the reader binary has no write path)",
+    "loads": "every load process is timeout-bounded; children killed on exit via trap",
+    "disk": "writes a small self-deleting temp file, gated on >5GB free",
+    "sudo": "not used",
+    "runtime_target_minutes": "~12-15"
+  },
+  "sampling": {
+    "tool": "smc_reader json",
+    "interval_seconds": 3,
+    "keys_per_sample": "~2100 numeric keys"
+  },
+  "stimuli": [
+    {
+      "name": "baseline",
+      "exercises": "nothing (idle reference)",
+      "hypothesis": "Captures resting values and ambient/battery drift. Keys that move here are environmental, not load-driven."
+    },
+    {
+      "name": "cpu_all",
+      "exercises": "all 14 cores at default QoS (P-cores + E-cores), busy integer loops",
+      "hypothesis": "P-core cluster temps/power should dominate: Tp*, TPD*, TCM*, PZC*, cluster power rails."
+    },
+    {
+      "name": "cpu_e",
+      "exercises": "background-QoS busy loops (taskpolicy -b) biased onto efficiency cores",
+      "hypothesis": "Differentiates E-core sensors (Te*, separate cluster) from P-core sensors by comparison to cpu_all."
+    },
+    {
+      "name": "memory",
+      "exercises": "streaming memory bandwidth via large-block dd zero->null",
+      "hypothesis": "DRAM / memory-controller sensors and memory power rails (Tm*, PMVR/PMVC) should respond more than under pure compute."
+    },
+    {
+      "name": "disk",
+      "exercises": "repeated fsync'd writes to the internal SSD",
+      "hypothesis": "NAND / SSD-controller thermal sensors should respond; isolates storage from compute."
+    }
+  ],
+  "deferred": {
+    "gpu": "Needs a dedicated Metal compute stressor; skipped this run to keep it reliable and unattended.",
+    "ane": "Neural Engine needs a CoreML model to load on demand; deferred.",
+    "per_core_isolation": "macOS gives QoS hints, not hard core affinity, so distinguishing individual P-cores (TPD0 vs TPD1) is unreliable."
+  }
+}

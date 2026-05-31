@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>M3 Max · digital twin</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: radial-gradient(circle at 50% 0%, #16202e 0%, #0a0e14 70%);
+    color: #c8d3e0;
+    font: 13px/1.4 ui-monospace, "SF Mono", Menlo, monospace;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 22px;
+  }
+  h1 { font-size: 15px; font-weight: 600; letter-spacing: .12em;
+       text-transform: uppercase; color: #7d8da0; margin-bottom: 4px; }
+  .sub { color: #566173; font-size: 11px; margin-bottom: 14px; }
+  svg { width: min(96vw, 1000px); height: auto; }
+  .lab { fill: #aeb9c8; font-size: 11px; font-weight: 600; letter-spacing: .05em; }
+  .val { fill: #fff; font-size: 14px; font-weight: 700; }
+  .unit { fill: #8a96a6; font-size: 10px; }
+  .frame { fill: #0e141d; stroke: #232f40; stroke-width: 2; }
+  .die { fill: #0c1117; stroke: #2a3a4f; stroke-width: 2; }
+  .blk { transition: fill .4s ease; stroke: #1c2735; stroke-width: 1.5; }
+  .dim { fill: #1a222e; }
+  .cell { stroke: #0c1117; stroke-width: 1; }
+  .ok { fill: #4ec9a8; } .hot { fill: #ff5d5d; }
+  .status { font-size: 11px; color: #566173; margin-top: 10px; }
+  #pwrbar-fill { transition: width .4s ease, fill .4s ease; }
+  .ptree { width: min(96vw, 1000px); margin-top: 20px;
+           border-top: 1px solid #1c2735; padding-top: 14px; }
+  .ptree h2 { font-size: 11px; letter-spacing: .12em; color: #7d8da0;
+              text-transform: uppercase; font-weight: 600; margin-bottom: 10px; }
+  .prow { display: grid; grid-template-columns: 52px 1fr 70px 90px 20px;
+          align-items: center; gap: 10px; height: 21px; }
+  .prow .pname { color: #aeb9c8; font-weight: 600; }
+  .pbar { height: 11px; background: #131a24; border-radius: 3px; overflow: hidden; }
+  .pbar > span { display: block; height: 100%; border-radius: 3px; transition: width .4s ease; }
+  .pw { text-align: right; color: #fff; font-weight: 700; }
+  .pvi { text-align: right; color: #5e6b7d; font-size: 11px; }
+  .pchk { text-align: center; color: #4ec9a8; }
+  .pcov { color: #566173; font-size: 11px; margin-top: 10px; }
+  .info-btn { display: inline-flex; align-items: center; justify-content: center;
+              width: 15px; height: 15px; border: 1px solid #3a4d66; border-radius: 50%;
+              color: #8a96a6; font-size: 10px; font-style: italic; font-weight: 700;
+              cursor: pointer; margin-left: 8px; vertical-align: middle; user-select: none; }
+  .info-btn:hover { color: #c8d3e0; border-color: #5a677a; }
+  .info-panel { display: none; background: #0d141c; border: 1px solid #1c2735;
+                border-radius: 8px; padding: 14px 18px; margin: 10px 0 16px;
+                font-size: 12px; line-height: 1.65; color: #9aa7b8; max-width: 820px;
+                text-transform: none; letter-spacing: normal; font-weight: 400; }
+  .info-panel.open { display: block; }
+  .info-panel b { color: #d4dde8; } .info-panel code { color: #4ec9a8; }
+  .info-panel .hi { color: #4ec9a8; } .info-panel .med { color: #f5c451; }
+  .info-panel p { margin-bottom: 9px; } .info-panel p:last-child { margin: 0; }
+</style>
+</head>
+<body>
+  <h1>MacBook Pro · M3 Max — Digital Twin</h1>
+  <div class="sub">live from AppleSMC · 96 P-core · 10 E-core · 32 GPU sensors · color = temperature</div>
+
+  <svg viewBox="0 0 1000 640" xmlns="http://www.w3.org/2000/svg">
+    <rect class="frame" x="20" y="20" width="960" height="600" rx="22" />
+
+    <!-- fans -->
+    <g>
+      <circle cx="150" cy="135" r="60" fill="#0d141c" stroke="#263244" stroke-width="2"/>
+      <g id="fan0-blades"></g>
+      <circle cx="150" cy="135" r="9" fill="#2a3a4f"/>
+      <text class="lab" x="150" y="214" text-anchor="middle">FAN 0</text>
+      <text class="val" id="fan0-val" x="150" y="234" text-anchor="middle">—</text>
+      <text class="unit" x="150" y="248" text-anchor="middle">rpm</text>
+    </g>
+    <g>
+      <circle cx="850" cy="135" r="60" fill="#0d141c" stroke="#263244" stroke-width="2"/>
+      <g id="fan1-blades"></g>
+      <circle cx="850" cy="135" r="9" fill="#2a3a4f"/>
+      <text class="lab" x="850" y="214" text-anchor="middle">FAN 1</text>
+      <text class="val" id="fan1-val" x="850" y="234" text-anchor="middle">—</text>
+      <text class="unit" x="850" y="248" text-anchor="middle">rpm</text>
+    </g>
+
+    <!-- DRAM packages -->
+    <rect class="blk dim" id="dram_l" x="70" y="290" width="115" height="150" rx="10"/>
+    <text class="lab" x="127" y="320" text-anchor="middle">DRAM</text>
+    <text class="val" id="dram_l-val" x="127" y="368" text-anchor="middle">—</text>
+    <text class="unit" id="dram_l-pwr" x="127" y="390" text-anchor="middle"></text>
+    <rect class="blk dim" id="dram_r" x="815" y="290" width="115" height="150" rx="10"/>
+    <text class="lab" x="872" y="320" text-anchor="middle">DRAM</text>
+    <text class="val" id="dram_r-val" x="872" y="368" text-anchor="middle">—</text>
+
+    <!-- SoC die -->
+    <rect class="die" x="295" y="232" width="410" height="288" rx="16"/>
+    <text class="lab" x="500" y="225" text-anchor="middle" style="fill:#5a677a">M3 Max SoC</text>
+
+    <text class="lab" x="338" y="262" text-anchor="start">P-CORES</text>
+    <text class="val" id="cpu_p-val" x="662" y="263" text-anchor="end" style="font-size:13px">—</text>
+    <g id="grid_p" transform="translate(338,270)"></g>
+
+    <text class="lab" x="338" y="404" text-anchor="start">GPU</text>
+    <text class="val" id="gpu-val" x="498" y="405" text-anchor="end" style="font-size:12px">—</text>
+    <g id="grid_g" transform="translate(338,412)"></g>
+
+    <text class="lab" x="520" y="404" text-anchor="start">E-CORES</text>
+    <text class="val" id="cpu_e-val" x="615" y="405" text-anchor="end" style="font-size:12px">—</text>
+    <g id="grid_e" transform="translate(520,412)"></g>
+
+    <rect class="blk dim" id="npu" x="628" y="412" width="58" height="76" rx="7"/>
+    <text class="lab" x="657" y="446" text-anchor="middle">NPU</text>
+    <text class="unit" x="657" y="462" text-anchor="middle">no data</text>
+
+    <!-- hotspot pill -->
+    <rect x="406" y="528" width="188" height="24" rx="12" fill="#0d141c" stroke="#2a3a4f"/>
+    <text class="unit" x="416" y="544" text-anchor="start">die hotspot</text>
+    <text class="val" id="hotspot-val" x="584" y="546" text-anchor="end" style="font-size:12px">—</text>
+
+    <!-- SSD -->
+    <rect class="blk dim" id="ssd" x="70" y="495" width="140" height="88" rx="10"/>
+    <text class="lab" x="140" y="526" text-anchor="middle">SSD</text>
+    <text class="val" id="ssd-val" x="140" y="560" text-anchor="middle">—</text>
+
+    <!-- battery -->
+    <rect class="blk dim" id="battery" x="380" y="566" width="240" height="46" rx="9"/>
+    <text class="lab" x="396" y="594" text-anchor="start">BATTERY</text>
+    <text class="val" id="battery-val" x="604" y="595" text-anchor="end" style="font-size:12px">—</text>
+
+    <!-- power / energy -->
+    <text class="lab" x="930" y="500" text-anchor="end">SYSTEM POWER</text>
+    <rect x="700" y="510" width="230" height="22" rx="6" fill="#0d141c" stroke="#263244"/>
+    <rect id="pwrbar-fill" x="702" y="512" width="0" height="18" rx="5" fill="#4ec9a8"/>
+    <text class="val" id="power-val" x="930" y="556" text-anchor="end">—<tspan class="unit"> W</tspan></text>
+    <text class="unit" id="energy-val" x="930" y="576" text-anchor="end">0 J since open</text>
+    <text id="throttle" class="ok" x="930" y="598" text-anchor="end" style="font-size:13px;font-weight:700">● nominal</text>
+
+    <!-- legend -->
+    <g transform="translate(70,608)">
+      <text class="unit" x="0" y="4">30°</text>
+      <rect x="26" y="-6" width="14" height="12" fill="hsl(220,80%,40%)"/>
+      <rect x="40" y="-6" width="14" height="12" fill="hsl(150,80%,42%)"/>
+      <rect x="54" y="-6" width="14" height="12" fill="hsl(60,80%,48%)"/>
+      <rect x="68" y="-6" width="14" height="12" fill="hsl(20,80%,52%)"/>
+      <rect x="82" y="-6" width="14" height="12" fill="hsl(0,80%,55%)"/>
+      <text class="unit" x="100" y="4">105°</text>
+    </g>
+  </svg>
+
+  <div class="ptree">
+    <h2>Power tree · live rails · P = V × I  (✓ = within 15%)<span class="info-btn" id="info-toggle" title="What is this?">i</span></h2>
+    <div class="info-panel" id="info-panel">
+      <p><b>The formula.</b> Each rail exposes three SMC keys: voltage (<code>V…</code>), current (<code>I…</code>), and power (<code>P…</code>). Electrical power is <b>P = V × I</b>. The <span class="hi">✓</span> appears when a rail's own V × I lands within 15% of its reported P — proof we're decoding all three correctly off the live hardware. Two honest non-matches: <b>SVR</b> is an aggregate regulator (one V·I pair can't equal a sum of child rails), and gated rails like <b>C42</b> read ~0 V because their voltage is sensed elsewhere.</p>
+      <p><b>What we've verified:</b> the <i>numbers</i> — Watt's law holds, so the V/I/P decode is correct. <b>What we have NOT:</b> what each rail physically powers. Apple documents none of this; <code>SVR</code>, <code>C02</code>, <code>E0b</code> are the SMC's own opaque codes, not labels.</p>
+      <p><b>Best current inference</b> <span class="med">(correlational — from which workload made each rail's power rise, not from schematics; medium confidence):</span><br>
+      • <code>C02 C42 C03 C43 E0b SVR</code> rose under CPU load → <b>CPU / SoC core rails</b><br>
+      • <code>C10 C12 C20 C22 C40 b0f</code> rose under GPU load → <b>GPU rails</b><br>
+      • <code>C32 P2b R2b R0b R9b</code> rose under memory load → <b>DRAM rails</b><br>
+      • <code>R8b</code> rose under disk load → <b>SSD rail</b></p>
+      <p>Exact device/pin mapping is still unknown — turning these inferences into ground truth is an open reverse-engineering task, same caveat as the temperature sensors.</p>
+    </div>
+    <div id="ptree-rows"></div>
+    <div class="pcov" id="ptree-cov"></div>
+  </div>
+
+  <div class="status" id="status">connecting to /stream…</div>
+
+<script>
+  const NS = "http://www.w3.org/2000/svg";
+  const FAN_CX = [150, 850], FAN_CY = [135, 135];
+
+  function buildBlades(groupId, cx, cy) {
+    const g = document.getElementById(groupId);
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2;
+      const ln = document.createElementNS(NS, "line");
+      ln.setAttribute("x1", cx); ln.setAttribute("y1", cy);
+      ln.setAttribute("x2", cx + Math.cos(a) * 50); ln.setAttribute("y2", cy + Math.sin(a) * 50);
+      ln.setAttribute("stroke", "#3a4d66"); ln.setAttribute("stroke-width", "5");
+      ln.setAttribute("stroke-linecap", "round");
+      g.appendChild(ln);
+    }
+  }
+  buildBlades("fan0-blades", 150, 135);
+  buildBlades("fan1-blades", 850, 135);
+
+  function tempColor(t) {
+    if (t == null) return "#1a222e";
+    const f = Math.max(0, Math.min(1, (t - 30) / 75));
+    return `hsl(${220 - 220 * f}, 80%, ${38 + 14 * f}%)`;
+  }
+
+  const CELL = 17, GAP = 2;
+  function renderGrid(id, items, cols) {
+    const g = document.getElementById(id);
+    while (g.childNodes.length < items.length) {
+      const r = document.createElementNS(NS, "rect");
+      r.setAttribute("class", "cell");
+      r.setAttribute("width", CELL); r.setAttribute("height", CELL); r.setAttribute("rx", 2);
+      r.appendChild(document.createElementNS(NS, "title"));
+      g.appendChild(r);
+    }
+    items.forEach((it, i) => {
+      const r = g.childNodes[i];
+      r.setAttribute("x", (i % cols) * (CELL + GAP));
+      r.setAttribute("y", Math.floor(i / cols) * (CELL + GAP));
+      r.setAttribute("fill", tempColor(it.v));
+      r.firstChild.textContent = `${it.k}: ${it.v.toFixed(1)}°C`;
+    });
+  }
+
+  const fanAngle = [0, 0], fanRpm = [0, 0];
+  let lastFrame = performance.now();
+  function spin(now) {
+    const dt = (now - lastFrame) / 1000; lastFrame = now;
+    for (let i = 0; i < 2; i++) {
+      fanAngle[i] += (fanRpm[i] / 60) * 360 * dt * 0.10;
+      document.getElementById("fan" + i + "-blades")
+        .setAttribute("transform", `rotate(${fanAngle[i]} ${FAN_CX[i]} ${FAN_CY[i]})`);
+    }
+    requestAnimationFrame(spin);
+  }
+  requestAnimationFrame(spin);
+
+  function setText(id, txt) { document.getElementById(id).textContent = txt; }
+  function blockColor(id, t) { document.getElementById(id).setAttribute("fill", tempColor(t)); }
+
+  function renderRails(rails, total) {
+    const live = rails.filter((r) => r.p != null).sort((a, b) => b.p - a.p);
+    const max = live.length ? live[0].p : 1;
+    document.getElementById("ptree-rows").innerHTML = live.slice(0, 18).map((r) => {
+      const frac = Math.max(0.015, Math.min(1, r.p / max));
+      const vi = (r.v != null && r.i != null) ? r.v * r.i : null;
+      const ok = vi != null && r.p > 0.05 && Math.abs(vi - r.p) / r.p < 0.15;
+      const color = `hsl(${200 - 170 * frac}, 72%, 55%)`;
+      const viTxt = (r.v != null && r.i != null)
+        ? `${r.v.toFixed(2)}V·${r.i.toFixed(2)}A` : "";
+      return `<div class="prow"><span class="pname">${r.k}</span>` +
+        `<span class="pbar"><span style="width:${frac * 100}%;background:${color}"></span></span>` +
+        `<span class="pw">${r.p.toFixed(2)} W</span>` +
+        `<span class="pvi">${viTxt}</span>` +
+        `<span class="pchk">${ok ? "✓" : ""}</span></div>`;
+    }).join("");
+    const sum = live.reduce((a, r) => a + r.p, 0);
+    document.getElementById("ptree-cov").textContent =
+      `${live.length} rails live · Σ ${sum.toFixed(1)} W measured` +
+      (total != null ? ` · system total ${total.toFixed(1)} W` : "");
+  }
+
+  let energyJ = 0, lastT = null;
+  function update(d) {
+    renderGrid("grid_p", d.grid_p, 16);
+    renderGrid("grid_e", d.grid_e, 5);
+    renderGrid("grid_g", d.grid_g, 8);
+    renderRails(d.rails, d.power.total);
+
+    setText("cpu_p-val", d.cpu_p.temp == null ? "—"
+      : `${d.cpu_p.temp.toFixed(0)}° · ${d.cpu_p.power == null ? "?" : d.cpu_p.power.toFixed(0)} W`);
+    setText("cpu_e-val", d.cpu_e.temp == null ? "—" : d.cpu_e.temp.toFixed(0) + "°");
+    setText("gpu-val", d.gpu.temp == null ? "—" : d.gpu.temp.toFixed(0) + "°");
+
+    blockColor("dram_l", d.dram.temp); blockColor("dram_r", d.dram.temp);
+    blockColor("ssd", d.ssd.temp); blockColor("battery", d.battery.temp);
+    setText("dram_l-val", d.dram.temp == null ? "—" : d.dram.temp.toFixed(0) + "°");
+    setText("dram_r-val", d.dram.temp == null ? "—" : d.dram.temp.toFixed(0) + "°");
+    setText("dram_l-pwr", d.dram.power == null ? "" : d.dram.power.toFixed(1) + " W");
+    setText("ssd-val", d.ssd.temp == null ? "—" : d.ssd.temp.toFixed(0) + "°");
+    setText("battery-val", d.battery.temp == null ? "—" : d.battery.temp.toFixed(0) + "°");
+
+    const hp = document.getElementById("hotspot-val");
+    hp.textContent = d.hotspot == null ? "—" : d.hotspot.toFixed(0) + "°C";
+    hp.setAttribute("fill", tempColor(d.hotspot));
+
+    fanRpm[0] = d.fans[0].rpm || 0; fanRpm[1] = d.fans[1].rpm || 0;
+    setText("fan0-val", d.fans[0].rpm == null ? "—" : d.fans[0].rpm.toFixed(0));
+    setText("fan1-val", d.fans[1].rpm == null ? "—" : d.fans[1].rpm.toFixed(0));
+
+    const total = d.power.total;
+    if (total != null) {
+      const frac = Math.max(0, Math.min(1, total / 80));
+      const bar = document.getElementById("pwrbar-fill");
+      bar.setAttribute("width", 226 * frac);
+      bar.setAttribute("fill", frac > 0.7 ? "#ff5d5d" : frac > 0.4 ? "#f5c451" : "#4ec9a8");
+      document.getElementById("power-val").innerHTML =
+        total.toFixed(1) + '<tspan class="unit"> W</tspan>';
+      const now = performance.now();
+      if (lastT != null) energyJ += total * ((now - lastT) / 1000);
+      lastT = now;
+      setText("energy-val", energyJ.toFixed(0) + " J since open");
+    }
+
+    const thr = document.getElementById("throttle");
+    const throttling = d.hotspot != null && d.hotspot > 100 && fanRpm[0] > 2400;
+    thr.textContent = throttling ? "▲ THROTTLING" : "● nominal";
+    thr.setAttribute("class", throttling ? "hot" : "ok");
+  }
+
+  document.getElementById("info-toggle").addEventListener("click", () => {
+    document.getElementById("info-panel").classList.toggle("open");
+  });
+
+  const es = new EventSource("/stream");
+  es.onmessage = (e) => {
+    setText("status", "● live · streaming from AppleSMC");
+    update(JSON.parse(e.data));
+  };
+  es.onerror = () => setText("status", "stream lost — is `smc_reader serve` running?");
+</script>
+</body>
+</html>
