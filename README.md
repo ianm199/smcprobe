@@ -85,15 +85,25 @@ Rail subsystem attribution (correlational): `C0x/C4x/E0b/SVR` → CPU/SoC, `C1x/
 
 ### What's new here vs. existing tools
 
-Community tools (`exelban/stats`, VirtualSMC, archived key lists) document Intel keys
-well and ship a *sparse curated subset* of Apple Silicon temp keys — and **no Apple
-Silicon power/voltage/current rails, no adapter-input (`D3*`) map, and no backlight rail**.
-This project's deltas:
+Prior art: `exelban/stats` and VirtualSMC ship a sparse curated subset of Apple Silicon
+temp keys (no rails). **Asahi Linux** goes furthest — `macsmc-hwmon` (kernel 6.19) exposes
+the raw T/V/I/P sensors and documents a few specific keys (`D1in`/`D2??` USB-C *ports*,
+`gP12` backlight gate, `TB0T`/`TCHP`/`TW0P`) — but, in their own words, you "mostly have to
+guess based on the four-character name," and there is **no per-rail subsystem attribution**.
 
-1. A **Watt's-law-verified power-rail map** for Apple Silicon (undocumented elsewhere).
-2. The **`D3*` AC-adapter / charge-input family** and the **`PDBR`/`IDBR` backlight rail**.
-3. **Full-family** temperature coverage with empirical per-stimulus attribution.
-4. A **reproducible method + dataset**, not hand-curated guesses.
+This project's additive deltas (checked against Asahi's docs):
+
+1. **Empirical per-rail subsystem attribution** — which `C/P/R` rail is CPU / GPU / DRAM / SSD,
+   by stimulus correlation. Asahi exposes the rails but doesn't attribute them.
+2. **`P = V × I` verified across 46 rails** — confirms the V/I/P decode; not done elsewhere.
+3. **Full-family temp attribution** (`Tp/Te/Tg` → P-core/E-core/GPU) by stimulus, vs. guess-by-name.
+4. The **`D3*` per-port electrical keys** (voltage/current) — extending Asahi's `D<n>`=USB-C-port
+   insight with the electrical sub-keys and plug/unplug behavior — plus the **`PDBR`/`IDBR`
+   backlight power/current rail** alongside their `gP12` gate.
+5. A **reproducible stimulus-correlation method + dataset + live twin**, not hand-curated guesses.
+
+Credit: the Apple Silicon SMC interface and the `D`/`g` key families were first documented by
+the [Asahi Linux](https://asahilinux.org/docs/hw/soc/smc/) project.
 
 ## Mapping a new Mac
 
