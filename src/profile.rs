@@ -30,6 +30,7 @@ pub struct Profile {
     pub adapter_current: Vec<String>,
     pub backlight_power: String,
     pub backlight_current: String,
+    pub ane_temp: Vec<String>,
 }
 
 /// Profiles shipped inside the binary, keyed by `hw.model`.
@@ -89,6 +90,7 @@ impl Profile {
             adapter_current: list("adapter_current"),
             backlight_power: one("backlight_power"),
             backlight_current: one("backlight_current"),
+            ane_temp: list("ane_temp"),
         }
     }
 }

@@ -37,6 +37,7 @@ backlight_current: IDBR
 # power-efficient its thermal signature is faint. It IS monitored, via shared
 # SoC sensors (Ta0*) plus faint ANE-region-specific responders (low confidence):
 #   candidate temps: Th00 Th01 Th02 Ts0h Ts0i ; candidate rail: C00 (PC00/IC00)
+ane_temp: Th00 Th01 Th02 Ts0h Ts0i
 #
 # The o* family (~358 keys) is static: a max delta of 0.000 across every
 # stimulus (compute, gpu, memory, disk, wifi, audio, charger, display, camera,

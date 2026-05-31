@@ -107,9 +107,10 @@
     <text class="val" id="cpu_e-val" x="615" y="405" text-anchor="end" style="font-size:12px">—</text>
     <g id="grid_e" transform="translate(520,412)"></g>
 
-    <rect class="blk dim" id="npu" x="628" y="412" width="58" height="76" rx="7"/>
-    <text class="lab" x="657" y="446" text-anchor="middle">NPU</text>
-    <text class="unit" x="657" y="462" text-anchor="middle">no data</text>
+    <rect class="blk" id="npu" x="628" y="412" width="58" height="76" rx="7"/>
+    <text class="lab" x="657" y="438" text-anchor="middle">ANE</text>
+    <text class="val" id="npu-val" x="657" y="458" text-anchor="middle" style="font-size:12px">—</text>
+    <text class="unit" x="657" y="472" text-anchor="middle">≈ approx</text>
 
     <!-- hotspot pill -->
     <rect x="406" y="528" width="188" height="24" rx="12" fill="#0d141c" stroke="#2a3a4f"/>
@@ -269,7 +270,13 @@
     setText("dram_r-val", d.dram.temp == null ? "—" : d.dram.temp.toFixed(0) + "°");
     setText("dram_l-pwr", d.dram.power == null ? "" : d.dram.power.toFixed(1) + " W");
     setText("ssd-val", d.ssd.temp == null ? "—" : d.ssd.temp.toFixed(0) + "°");
-    setText("battery-val", d.battery.temp == null ? "—" : d.battery.temp.toFixed(0) + "°");
+    const charging = d.adapter && d.adapter.present ? " ⚡" : "";
+    setText("battery-val", (d.battery.temp == null ? "—" : d.battery.temp.toFixed(0) + "°") + charging);
+
+    if (d.ane) {
+      blockColor("npu", d.ane.temp);
+      setText("npu-val", d.ane.temp == null ? "—" : d.ane.temp.toFixed(0) + "°");
+    }
 
     const hp = document.getElementById("hotspot-val");
     hp.textContent = d.hotspot == null ? "—" : d.hotspot.toFixed(0) + "°C";

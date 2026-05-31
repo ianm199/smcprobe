@@ -46,6 +46,7 @@ pub struct Snapshot {
     pub adapter_i: Option<f32>,
     pub charger_present: bool,
     pub backlight_w: Option<f32>,
+    pub ane_temp: Option<f32>,
 }
 
 impl Snapshot {
@@ -68,6 +69,7 @@ impl Snapshot {
         add(&mut want, &p.adapter_current);
         want.push(p.backlight_power.clone());
         want.push(p.backlight_current.clone());
+        add(&mut want, &p.ane_temp);
         for s in &p.rails {
             want.push(format!("V{s}"));
             want.push(format!("I{s}"));
@@ -134,6 +136,7 @@ impl Snapshot {
             adapter_i: avg(&m, &p.adapter_current),
             charger_present: avg(&m, &p.adapter_voltage).is_some_and(|v| v > 1.0),
             backlight_w: m.get(&p.backlight_power).copied(),
+            ane_temp: avg(&m, &p.ane_temp),
         }
     }
 
@@ -147,6 +150,7 @@ impl Snapshot {
                 r#""fans":[{{"rpm":{}}},{{"rpm":{}}}],"#,
                 r#""power":{{"total":{},"cluster0":{},"cluster1":{}}},"#,
                 r#""adapter":{{"v":{},"i":{},"present":{}}},"backlight":{{"power":{}}},"#,
+                r#""ane":{{"temp":{}}},"#,
                 r#""grid_p":{},"grid_e":{},"grid_g":{},"rails":{}}}"#
             ),
             opt(self.cpu_p.temp),
@@ -167,6 +171,7 @@ impl Snapshot {
             opt(self.adapter_i),
             self.charger_present,
             opt(self.backlight_w),
+            opt(self.ane_temp),
             grid_json(&self.grid_p),
             grid_json(&self.grid_e),
             grid_json(&self.grid_g),
