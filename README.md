@@ -90,27 +90,30 @@ Rail subsystem attribution (correlational): `C0x/C4x/E0b/SVR` → CPU/SoC, `C1x/
 - **73 `ui32` keys are free-running clocks** (constant rate, not load-coupled) — not energy meters; excluded from analysis.
 - **The `o*` family (358 keys) is static** — max delta `0.000` across *every* stimulus (compute, GPU, memory, disk, Wi-Fi, audio, charger, display, camera, ANE). They are not load-driven sensors but config/calibration/identity values; not crackable by stimulus-response.
 
-### What's new here vs. existing tools
+### What's here vs. existing tools
 
-Prior art: `exelban/stats` and VirtualSMC ship a sparse curated subset of Apple Silicon
-temp keys (no rails). **Asahi Linux** goes furthest — `macsmc-hwmon` (kernel 6.19) exposes
-the raw T/V/I/P sensors and documents a few specific keys (`D1in`/`D2??` USB-C *ports*,
-`gP12` backlight gate, `TB0T`/`TCHP`/`TW0P`) — but, in their own words, you "mostly have to
-guess based on the four-character name," and there is **no per-rail subsystem attribution**.
+A lot of this ground is already covered, and this project stands on it. **Asahi Linux**
+(`macsmc-hwmon`, kernel 6.19) exposes the raw T/V/I/P sensors and documents key families
+(`D<n>` USB-C ports, `gP12` backlight, `TB0T`/`TCHP`); **`exelban/stats`** ships curated
+Apple Silicon temp keys per generation *and already includes* adapter (`VD0R`/`PDTR`) and
+backlight (`IDBR`/`PDBR`); **VirtualSMC** documents the interface. Credit to all three —
+especially [Asahi](https://asahilinux.org/docs/hw/soc/smc/), who first documented the
+Apple Silicon SMC.
 
-This project's additive deltas (checked against Asahi's docs):
+What this project adds on top, after cross-checking the above:
 
-1. **Empirical per-rail subsystem attribution** — which `C/P/R` rail is CPU / GPU / DRAM / SSD,
-   by stimulus correlation. Asahi exposes the rails but doesn't attribute them.
-2. **`P = V × I` verified across 46 rails** — confirms the V/I/P decode; not done elsewhere.
-3. **Full-family temp attribution** (`Tp/Te/Tg` → P-core/E-core/GPU) by stimulus, vs. guess-by-name.
-4. The **`D3*` per-port electrical keys** (voltage/current) — extending Asahi's `D<n>`=USB-C-port
-   insight with the electrical sub-keys and plug/unplug behavior — plus the **`PDBR`/`IDBR`
-   backlight power/current rail** alongside their `gP12` gate.
-5. A **reproducible stimulus-correlation method + dataset + live twin**, not hand-curated guesses.
+1. **Empirical per-rail subsystem attribution** — *which* `C/P/R` rail is CPU / GPU / DRAM /
+   SSD, by stimulus correlation. The others expose or list rails; none say what each *is*.
+2. **`P = V × I` verified across 46 rails** — confirms the V/I/P decode is correct.
+3. **`D3*` per-*port* adapter electrical keys** — finer-grained than the aggregate `VD0R`/`PDTR`.
+4. A **reproducible stimulus-correlation method + dataset + live twin** — not hand-curated guesses;
+   re-runnable on any model.
 
-Credit: the Apple Silicon SMC interface and the `D`/`g` key families were first documented by
-the [Asahi Linux](https://asahilinux.org/docs/hw/soc/smc/) project.
+Honest notes: our temperature families (`Tp*`/`Tg*`, 96/32 keys) overlap with — and are finer
+than — Stats' curated `Tf*` choice for M3; we have **no ground truth** to say either is "the"
+core sensor, so ours are best read as a complementary heatmap field. Backlight (`PDBR`/`IDBR`)
+and DC-in adapter (`VD0R`/`PDTR`) are *not* novel — Stats already has them; we found them
+independently, which mostly validates the method.
 
 ## Mapping a new Mac
 
